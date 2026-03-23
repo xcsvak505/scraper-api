@@ -2,11 +2,10 @@ const express = require("express");
 const fetch = require("node-fetch");
 
 const app = express();
-
 const PORT = process.env.PORT || 3000;
 
 /*
-🔥 MANUAL CORS (BIAR GAK CRASH)
+🔥 MANUAL CORS
 */
 app.use((req, res, next) => {
   res.setHeader("Access-Control-Allow-Origin", "*");
@@ -42,6 +41,13 @@ const MARKETS = {
 };
 
 /*
+🔥 HELPER
+*/
+const getTodayDate = () => {
+  return new Date().toISOString().slice(0,10);
+};
+
+/*
 🔥 ROOT
 */
 app.get("/", (req, res) => {
@@ -56,30 +62,33 @@ app.get("/scrape", async (req, res) => {
     const market = req.query.market;
 
     if (!MARKETS[market]) {
-      return res.json({ status: false, message: "Market tidak valid" });
+      return res.json({ status:false, message:"Market tidak valid" });
     }
 
     const config = MARKETS[market];
 
     /*
     =========================
-    🔥 STEP 1: MAIN (AMBIL SEMUA)
+    🔥 STEP 1: MAIN
     =========================
     */
     const mainHTML = await fetch(config.main).then(r => r.text());
 
     const mainMatches = [...mainHTML.matchAll(/pool&quot;:&quot;(\d+)/g)];
-    const mainNumbers = mainMatches.map(x => x[1]);
+    let mainNumbers = mainMatches.map(x => x[1]);
+
+    // remove duplicate
+    mainNumbers = [...new Set(mainNumbers)];
 
     const mainPrize1 = mainNumbers[0];
 
     if (!mainPrize1) {
-      return res.json({ status: false, message: "Main belum keluar" });
+      return res.json({ status:false, message:"Main belum keluar" });
     }
 
     /*
     =========================
-    🔥 STEP 2: HISTORY (ANTI ERROR)
+    🔥 STEP 2: HISTORY
     =========================
     */
     const historyURL = `https://duatiga0326.kartu275.com/history/result/${config.code}/kosong`;
@@ -88,61 +97,79 @@ app.get("/scrape", async (req, res) => {
       headers: { "x-requested-with": "XMLHttpRequest" }
     }).then(r => r.text());
 
-    const allNumbers = [...historyHTML.matchAll(/showdetil\('(\d+)'\)/g)].map(x => x[1]);
+    const rows = [...historyHTML.matchAll(/<tr>([\s\S]*?)<\/tr>/g)];
 
-    if (allNumbers.length < 2) {
-      return res.json({ status: false, message: "History error" });
+    if(rows.length < 2){
+      return res.json({ status:false, message:"History error" });
     }
 
-    // 🔥 PRIZE1 ONLY
-    const historyToday = allNumbers[0];
-    const historyYesterday = allNumbers[3] || allNumbers[1];
+    const rowToday = rows[1][1];
+
+    // ambil tanggal
+    const dateMatch = rowToday.match(/(\d{4}-\d{2}-\d{2})/);
+    const historyDate = dateMatch ? dateMatch[1] : null;
+
+    const todayDate = getTodayDate();
+
+    // ambil angka
+    const historyNumbers = [...rowToday.matchAll(/showdetil\('(\d+)'\)/g)].map(x => x[1]);
+
+    const historyPrize1 = historyNumbers[0];
 
     /*
     =========================
-    🔥 STEP 3: VALIDASI
+    🔥 LOGIC FINAL
     =========================
     */
 
-    // ✅ CONFIRMED
-    if (historyToday && historyToday !== historyYesterday) {
-      let result = {};
-      for (let i = 0; i < mainNumbers.length; i++) {
-        result["prize" + (i + 1)] = mainNumbers[i];
+    // 🔥 BELUM ADA TANGGAL HARI INI
+    if(historyDate !== todayDate){
+
+      // angka baru → VALID
+      if(!historyNumbers.includes(mainPrize1)){
+        let result = {};
+        mainNumbers.forEach((n,i)=> result["prize"+(i+1)] = n);
+
+        return res.json({
+          status:true,
+          type:"VALID",
+          market,
+          result
+        });
       }
 
       return res.json({
-        status: true,
-        type: "CONFIRMED",
-        market,
-        result
+        status:false,
+        message:"Angka lama"
       });
     }
 
-    // ⚡ VALID (CEPAT)
-    if (mainPrize1 !== historyToday && mainPrize1 !== historyYesterday) {
-      let result = {};
-      for (let i = 0; i < mainNumbers.length; i++) {
-        result["prize" + (i + 1)] = mainNumbers[i];
+    // 🔥 SUDAH ADA TANGGAL HARI INI
+    if(historyDate === todayDate){
+
+      // cocok → CONFIRMED
+      if(historyNumbers.includes(mainPrize1)){
+        let result = {};
+        historyNumbers.forEach((n,i)=> result["prize"+(i+1)] = n);
+
+        return res.json({
+          status:true,
+          type:"CONFIRMED",
+          market,
+          result
+        });
       }
 
       return res.json({
-        status: true,
-        type: "VALID",
-        market,
-        result
+        status:false,
+        message:"Tidak sinkron"
       });
     }
-
-    return res.json({
-      status: false,
-      message: "Angka lama / belum update"
-    });
 
   } catch (err) {
     return res.json({
-      status: false,
-      message: "Error",
+      status:false,
+      message:"Error",
       error: err.message
     });
   }
