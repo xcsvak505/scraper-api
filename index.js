@@ -69,7 +69,7 @@ app.get("/scrape", async (req, res) => {
 
     /*
     =========================
-    🔥 STEP 1: MAIN (AMBIL SEMUA ANGKA)
+    🔥 STEP 1: MAIN
     =========================
     */
     const mainHTML = await fetch(config.main).then(r => r.text());
@@ -87,7 +87,7 @@ app.get("/scrape", async (req, res) => {
 
     /*
     =========================
-    🔥 STEP 2: HISTORY (SUPER STABLE)
+    🔥 STEP 2: HISTORY (STABLE)
     =========================
     */
     const historyURL = `https://duatiga0326.kartu275.com/history/result/${config.code}/kosong`;
@@ -99,35 +99,29 @@ app.get("/scrape", async (req, res) => {
       }
     }).then(r => r.text());
 
-    // ambil angka
     const allNumbers = [...historyHTML.matchAll(/showdetil\('(\d+)'\)/g)].map(x => x[1]);
-
-    // ambil tanggal
     const allDates = [...historyHTML.matchAll(/(\d{4}-\d{2}-\d{2})/g)].map(x => x[1]);
 
     if (allNumbers.length < 1 || allDates.length < 1) {
       return res.json({ status:false, message:"History error (empty)" });
     }
 
-    const historyPrize1 = allNumbers[0];
     const historyDate = allDates[0];
-
     const todayDate = getTodayDate();
 
     /*
     =========================
-    🔥 LOGIC FINAL
+    🔥 FINAL LOGIC (ALL SHOW)
     =========================
     */
 
-    // 🔥 BELUM ADA TANGGAL HARI INI → VALID MODE
+    let result = {};
+    mainNumbers.forEach((n,i)=> result["prize"+(i+1)] = n);
+
+    // 🔥 BELUM UPDATE
     if (historyDate !== todayDate) {
 
-      // angka baru
       if (!allNumbers.includes(mainPrize1)) {
-        let result = {};
-        mainNumbers.forEach((n,i)=> result["prize"+(i+1)] = n);
-
         return res.json({
           status:true,
           type:"VALID",
@@ -137,29 +131,24 @@ app.get("/scrape", async (req, res) => {
       }
 
       return res.json({
-        status:false,
-        message:"Angka lama"
+        status:true,
+        type:"OLD",
+        market,
+        result
       });
     }
 
-    // 🔥 SUDAH ADA TANGGAL HARI INI → CONFIRMED MODE
+    // 🔥 SUDAH UPDATE
     if (historyDate === todayDate) {
 
-      if (allNumbers.includes(mainPrize1)) {
-        let result = {};
-        result["prize1"] = historyPrize1;
-
-        return res.json({
-          status:true,
-          type:"CONFIRMED",
-          market,
-          result
-        });
-      }
+      let resultHistory = {};
+      allNumbers.forEach((n,i)=> resultHistory["prize"+(i+1)] = n);
 
       return res.json({
-        status:false,
-        message:"Tidak sinkron"
+        status:true,
+        type:"CONFIRMED",
+        market,
+        result: resultHistory
       });
     }
 
