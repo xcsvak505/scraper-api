@@ -8,16 +8,27 @@ const PORT = process.env.PORT || 3000;
 🔥 FULL MARKET (AUTO DARI KARTUTOTO)
 */
 const MARKETS = {
-  miami: { main: "https://miamilottery4d.us", code: "p13857" },
-  roma: { main: "https://romalottery4d.com", code: "p13859" },
-  foshan: { main: "https://foshantoto.com", code: "p30093" },
-  kowloon: { main: "https://kowloon4d.com", code: "p30100" },
-  japan: { main: "https://japanlottery.online", code: "p15472" },
-  cambodia: { main: "https://magnumcambodia.com", code: "p13851" },
-  china: { main: "https://chinatoto4d.asia", code: "p13852" },
-  taiwan: { main: "https://taiwan-lotto.com", code: "p13862" },
   turin: { main: "https://turinpools4d.org", code: "p13864" },
-  singapore: { main: "https://phplottery.com", code: "p13860" }
+  italy: { main: "https://italylotto4d.com", code: "p30527" },
+  cuba: { main: "https://cubalotto.com", code: "p30091" },
+  france: { main: "https://francelottery4d.com", code: "p30528" },
+  bulgaria: { main: "https://bulgarialottodraw.com", code: "p28512" },
+  hungary: { main: "https://hungarylotto4d.com", code: "p28513" },
+  ecuador: { main: "https://ecuadorlotto.com", code: "p30092" },
+  foshan: { main: "https://foshantoto.com", code: "p30093" },
+  chile: { main: "https://chilelotto4d.com", code: "p30529" },
+  laos: { main: "https://laoslotterydraw.com", code: "p28514" },
+  chengdu: { main: "https://chengdutoto.com", code: "p30095" },
+  china: { main: "https://chinatoto4d.asia", code: "p13852" },
+  chongqing: { main: "https://chongqing4d.com", code: "p30097" },
+  japan: { main: "https://japanlottery.online", code: "p15472" },
+  kowloon: { main: "https://kowloon4d.com", code: "p30100" },
+  jejulotto: { main: "https://jejulotto.com", code: "p28515" },
+  taichung: { main: "https://taichung4d.com", code: "p30102" },
+  oslo: { main: "https://oslolotto.com", code: "p30531" },
+  bhutan: { main: "https://bhutanpools4d.com", code: "p28517" },
+  denver: { main: "https://denverwla.us", code: "p30105" },
+  toronto: { main: "https://torontolottodraw.com", code: "p28518" }
 };
 
 /*
