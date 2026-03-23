@@ -45,6 +45,11 @@ const MARKETS = {
 */
 const getTodayDate = () => new Date().toISOString().slice(0,10);
 
+// normalize 4 digit
+const normalize = (num) => {
+  return num.replace(/\D/g,'').slice(-4);
+};
+
 /*
 🔥 ROOT
 */
@@ -74,7 +79,7 @@ app.get("/scrape", async (req, res) => {
 
     let mainNumbers = [...mainHTML.matchAll(/pool&quot;:&quot;(\d+)/g)].map(x => x[1]);
 
-    // hapus duplicate
+    // remove duplicate
     mainNumbers = [...new Set(mainNumbers)];
 
     const mainPrize1 = mainNumbers[0];
@@ -109,6 +114,14 @@ app.get("/scrape", async (req, res) => {
 
     /*
     =========================
+    🔥 NORMALIZE (FIX 4 DIGIT BUG)
+    =========================
+    */
+    const main4D = normalize(mainPrize1);
+    const history4D = allNumbers.map(n => normalize(n));
+
+    /*
+    =========================
     🔥 OUTPUT (SELALU DARI MAIN)
     =========================
     */
@@ -124,8 +137,7 @@ app.get("/scrape", async (req, res) => {
     // BELUM UPDATE
     if (historyDate !== todayDate) {
 
-      // angka baru
-      if (!allNumbers.includes(mainPrize1)) {
+      if (!history4D.includes(main4D)) {
         return res.json({
           status:true,
           type:"VALID",
@@ -134,7 +146,6 @@ app.get("/scrape", async (req, res) => {
         });
       }
 
-      // angka lama
       return res.json({
         status:true,
         type:"OLD",
