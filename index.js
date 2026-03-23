@@ -5,7 +5,7 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 /*
-🔥 MANUAL CORS
+🔥 CORS
 */
 app.use((req, res, next) => {
   res.setHeader("Access-Control-Allow-Origin", "*");
@@ -43,9 +43,7 @@ const MARKETS = {
 /*
 🔥 HELPER
 */
-const getTodayDate = () => {
-  return new Date().toISOString().slice(0,10);
-};
+const getTodayDate = () => new Date().toISOString().slice(0,10);
 
 /*
 🔥 ROOT
@@ -69,7 +67,7 @@ app.get("/scrape", async (req, res) => {
 
     /*
     =========================
-    🔥 STEP 1: MAIN
+    🔥 MAIN (SOURCE UTAMA)
     =========================
     */
     const mainHTML = await fetch(config.main).then(r => r.text());
@@ -87,7 +85,7 @@ app.get("/scrape", async (req, res) => {
 
     /*
     =========================
-    🔥 STEP 2: HISTORY (STABLE)
+    🔥 HISTORY (VALIDASI)
     =========================
     */
     const historyURL = `https://duatiga0326.kartu275.com/history/result/${config.code}/kosong`;
@@ -103,7 +101,7 @@ app.get("/scrape", async (req, res) => {
     const allDates = [...historyHTML.matchAll(/(\d{4}-\d{2}-\d{2})/g)].map(x => x[1]);
 
     if (allNumbers.length < 1 || allDates.length < 1) {
-      return res.json({ status:false, message:"History error (empty)" });
+      return res.json({ status:false, message:"History error" });
     }
 
     const historyDate = allDates[0];
@@ -111,16 +109,22 @@ app.get("/scrape", async (req, res) => {
 
     /*
     =========================
-    🔥 FINAL LOGIC (ALL SHOW)
+    🔥 OUTPUT (SELALU DARI MAIN)
     =========================
     */
-
     let result = {};
     mainNumbers.forEach((n,i)=> result["prize"+(i+1)] = n);
 
-    // 🔥 BELUM UPDATE
+    /*
+    =========================
+    🔥 LOGIC FINAL
+    =========================
+    */
+
+    // BELUM UPDATE
     if (historyDate !== todayDate) {
 
+      // angka baru
       if (!allNumbers.includes(mainPrize1)) {
         return res.json({
           status:true,
@@ -130,6 +134,7 @@ app.get("/scrape", async (req, res) => {
         });
       }
 
+      // angka lama
       return res.json({
         status:true,
         type:"OLD",
@@ -138,17 +143,14 @@ app.get("/scrape", async (req, res) => {
       });
     }
 
-    // 🔥 SUDAH UPDATE
+    // SUDAH UPDATE
     if (historyDate === todayDate) {
-
-      let resultHistory = {};
-      allNumbers.forEach((n,i)=> resultHistory["prize"+(i+1)] = n);
 
       return res.json({
         status:true,
         type:"CONFIRMED",
         market,
-        result: resultHistory
+        result
       });
     }
 
