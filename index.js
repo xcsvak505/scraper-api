@@ -69,15 +69,14 @@ app.get("/scrape", async (req, res) => {
 
     /*
     =========================
-    🔥 STEP 1: MAIN
+    🔥 STEP 1: MAIN (AMBIL SEMUA ANGKA)
     =========================
     */
     const mainHTML = await fetch(config.main).then(r => r.text());
 
-    const mainMatches = [...mainHTML.matchAll(/pool&quot;:&quot;(\d+)/g)];
-    let mainNumbers = mainMatches.map(x => x[1]);
+    let mainNumbers = [...mainHTML.matchAll(/pool&quot;:&quot;(\d+)/g)].map(x => x[1]);
 
-    // remove duplicate
+    // hapus duplicate
     mainNumbers = [...new Set(mainNumbers)];
 
     const mainPrize1 = mainNumbers[0];
@@ -88,33 +87,32 @@ app.get("/scrape", async (req, res) => {
 
     /*
     =========================
-    🔥 STEP 2: HISTORY
+    🔥 STEP 2: HISTORY (SUPER STABLE)
     =========================
     */
     const historyURL = `https://duatiga0326.kartu275.com/history/result/${config.code}/kosong`;
 
     const historyHTML = await fetch(historyURL, {
-      headers: { "x-requested-with": "XMLHttpRequest" }
+      headers: {
+        "x-requested-with": "XMLHttpRequest",
+        "user-agent": "Mozilla/5.0"
+      }
     }).then(r => r.text());
 
-    const rows = [...historyHTML.matchAll(/<tr>([\s\S]*?)<\/tr>/g)];
-
-    if(rows.length < 2){
-      return res.json({ status:false, message:"History error" });
-    }
-
-    const rowToday = rows[1][1];
+    // ambil angka
+    const allNumbers = [...historyHTML.matchAll(/showdetil\('(\d+)'\)/g)].map(x => x[1]);
 
     // ambil tanggal
-    const dateMatch = rowToday.match(/(\d{4}-\d{2}-\d{2})/);
-    const historyDate = dateMatch ? dateMatch[1] : null;
+    const allDates = [...historyHTML.matchAll(/(\d{4}-\d{2}-\d{2})/g)].map(x => x[1]);
+
+    if (allNumbers.length < 1 || allDates.length < 1) {
+      return res.json({ status:false, message:"History error (empty)" });
+    }
+
+    const historyPrize1 = allNumbers[0];
+    const historyDate = allDates[0];
 
     const todayDate = getTodayDate();
-
-    // ambil angka
-    const historyNumbers = [...rowToday.matchAll(/showdetil\('(\d+)'\)/g)].map(x => x[1]);
-
-    const historyPrize1 = historyNumbers[0];
 
     /*
     =========================
@@ -122,11 +120,11 @@ app.get("/scrape", async (req, res) => {
     =========================
     */
 
-    // 🔥 BELUM ADA TANGGAL HARI INI
-    if(historyDate !== todayDate){
+    // 🔥 BELUM ADA TANGGAL HARI INI → VALID MODE
+    if (historyDate !== todayDate) {
 
-      // angka baru → VALID
-      if(!historyNumbers.includes(mainPrize1)){
+      // angka baru
+      if (!allNumbers.includes(mainPrize1)) {
         let result = {};
         mainNumbers.forEach((n,i)=> result["prize"+(i+1)] = n);
 
@@ -144,13 +142,12 @@ app.get("/scrape", async (req, res) => {
       });
     }
 
-    // 🔥 SUDAH ADA TANGGAL HARI INI
-    if(historyDate === todayDate){
+    // 🔥 SUDAH ADA TANGGAL HARI INI → CONFIRMED MODE
+    if (historyDate === todayDate) {
 
-      // cocok → CONFIRMED
-      if(historyNumbers.includes(mainPrize1)){
+      if (allNumbers.includes(mainPrize1)) {
         let result = {};
-        historyNumbers.forEach((n,i)=> result["prize"+(i+1)] = n);
+        result["prize1"] = historyPrize1;
 
         return res.json({
           status:true,
