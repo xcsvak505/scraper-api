@@ -1,11 +1,18 @@
 const express = require("express");
 const fetch = require("node-fetch");
-const cors = require("cors");
 
 const app = express();
-app.use(cors());
 
 const PORT = process.env.PORT || 3000;
+
+/*
+🔥 MANUAL CORS (BIAR GAK CRASH)
+*/
+app.use((req, res, next) => {
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Headers", "*");
+  next();
+});
 
 /*
 🔥 MARKET
@@ -35,20 +42,28 @@ const MARKETS = {
 };
 
 /*
+🔥 ROOT
+*/
+app.get("/", (req, res) => {
+  res.send("API RUNNING 🔥");
+});
+
+/*
 🔥 SCRAPER FINAL
 */
 app.get("/scrape", async (req, res) => {
   try {
     const market = req.query.market;
+
     if (!MARKETS[market]) {
-      return res.json({ status:false, message:"Market tidak valid" });
+      return res.json({ status: false, message: "Market tidak valid" });
     }
 
     const config = MARKETS[market];
 
     /*
     =========================
-    🔥 STEP 1: MAIN (AMBIL SEMUA ANGKA)
+    🔥 STEP 1: MAIN (AMBIL SEMUA)
     =========================
     */
     const mainHTML = await fetch(config.main).then(r => r.text());
@@ -58,13 +73,13 @@ app.get("/scrape", async (req, res) => {
 
     const mainPrize1 = mainNumbers[0];
 
-    if(!mainPrize1){
-      return res.json({ status:false, message:"Main belum keluar" });
+    if (!mainPrize1) {
+      return res.json({ status: false, message: "Main belum keluar" });
     }
 
     /*
     =========================
-    🔥 STEP 2: HISTORY (PRIZE1 SAJA)
+    🔥 STEP 2: HISTORY (ANTI ERROR)
     =========================
     */
     const historyURL = `https://duatiga0326.kartu275.com/history/result/${config.code}/kosong`;
@@ -73,63 +88,61 @@ app.get("/scrape", async (req, res) => {
       headers: { "x-requested-with": "XMLHttpRequest" }
     }).then(r => r.text());
 
-    const rows = [...historyHTML.matchAll(/<tr>([\s\S]*?)<\/tr>/g)];
+    const allNumbers = [...historyHTML.matchAll(/showdetil\('(\d+)'\)/g)].map(x => x[1]);
 
-    if(rows.length < 3){
-      return res.json({ status:false, message:"History error" });
+    if (allNumbers.length < 2) {
+      return res.json({ status: false, message: "History error" });
     }
 
-    const getNumbers = (row) => {
-      return [...row.matchAll(/showdetil\('(\d+)'\)/g)].map(x => x[1]);
-    };
-
-    const today = getNumbers(rows[1][1]);
-    const yesterday = getNumbers(rows[2][1]);
-
-    const historyToday = today[0];
-    const historyYesterday = yesterday[0];
+    // 🔥 PRIZE1 ONLY
+    const historyToday = allNumbers[0];
+    const historyYesterday = allNumbers[3] || allNumbers[1];
 
     /*
     =========================
-    🔥 STEP 3: VALIDATION (PRIZE1 ONLY)
+    🔥 STEP 3: VALIDASI
     =========================
     */
 
     // ✅ CONFIRMED
-    if(historyToday && historyToday !== historyYesterday){
+    if (historyToday && historyToday !== historyYesterday) {
       let result = {};
-      today.forEach((n,i)=> result["prize"+(i+1)] = n);
+      for (let i = 0; i < mainNumbers.length; i++) {
+        result["prize" + (i + 1)] = mainNumbers[i];
+      }
 
       return res.json({
-        status:true,
-        type:"CONFIRMED",
+        status: true,
+        type: "CONFIRMED",
         market,
         result
       });
     }
 
-    // ⚡ VALID (EARLY CEPAT)
-    if(mainPrize1 !== historyToday && mainPrize1 !== historyYesterday){
+    // ⚡ VALID (CEPAT)
+    if (mainPrize1 !== historyToday && mainPrize1 !== historyYesterday) {
       let result = {};
-      mainNumbers.forEach((n,i)=> result["prize"+(i+1)] = n);
+      for (let i = 0; i < mainNumbers.length; i++) {
+        result["prize" + (i + 1)] = mainNumbers[i];
+      }
 
       return res.json({
-        status:true,
-        type:"VALID",
+        status: true,
+        type: "VALID",
         market,
         result
       });
     }
 
     return res.json({
-      status:false,
-      message:"Angka lama / belum update"
+      status: false,
+      message: "Angka lama / belum update"
     });
 
   } catch (err) {
     return res.json({
-      status:false,
-      message:"Error",
+      status: false,
+      message: "Error",
       error: err.message
     });
   }
@@ -139,5 +152,5 @@ app.get("/scrape", async (req, res) => {
 🔥 START
 */
 app.listen(PORT, () => {
-  console.log("RUNNING " + PORT);
+  console.log("RUNNING PORT " + PORT);
 });
