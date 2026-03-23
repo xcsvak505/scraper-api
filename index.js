@@ -1,11 +1,14 @@
 const express = require("express");
 const fetch = require("node-fetch");
+const cors = require("cors");
+
 const app = express();
+app.use(cors());
 
 const PORT = process.env.PORT || 3000;
 
 /*
-🔥 FULL MARKET (AUTO DARI KARTUTOTO)
+🔥 MARKET
 */
 const MARKETS = {
   turin: { main: "https://turinpools4d.org", code: "p13864" },
@@ -32,41 +35,36 @@ const MARKETS = {
 };
 
 /*
-🔥 ROOT
-*/
-app.get("/", (req, res) => {
-  res.send("API RUNNING 🚀");
-});
-
-/*
-🔥 SCRAPER PRO
+🔥 SCRAPER FINAL
 */
 app.get("/scrape", async (req, res) => {
   try {
     const market = req.query.market;
-
-    if (!market || !MARKETS[market]) {
-      return res.json({ status: false, message: "Market tidak valid" });
+    if (!MARKETS[market]) {
+      return res.json({ status:false, message:"Market tidak valid" });
     }
 
     const config = MARKETS[market];
 
     /*
     =========================
-    🔥 STEP 1: MAIN (EARLY DETECT)
+    🔥 STEP 1: MAIN (AMBIL SEMUA ANGKA)
     =========================
     */
-    let mainNumber = null;
+    const mainHTML = await fetch(config.main).then(r => r.text());
 
-    try {
-      const mainHTML = await fetch(config.main).then(r => r.text());
-      const match = mainHTML.match(/pool&quot;:&quot;(\d+)/i);
-      mainNumber = match ? match[1] : null;
-    } catch {}
+    const mainMatches = [...mainHTML.matchAll(/pool&quot;:&quot;(\d+)/g)];
+    const mainNumbers = mainMatches.map(x => x[1]);
+
+    const mainPrize1 = mainNumbers[0];
+
+    if(!mainPrize1){
+      return res.json({ status:false, message:"Main belum keluar" });
+    }
 
     /*
     =========================
-    🔥 STEP 2: HISTORY (CONFIRM)
+    🔥 STEP 2: HISTORY (PRIZE1 SAJA)
     =========================
     */
     const historyURL = `https://duatiga0326.kartu275.com/history/result/${config.code}/kosong`;
@@ -75,56 +73,63 @@ app.get("/scrape", async (req, res) => {
       headers: { "x-requested-with": "XMLHttpRequest" }
     }).then(r => r.text());
 
-    const matches = [...historyHTML.matchAll(/showdetil\('(\d+)'\)/g)];
+    const rows = [...historyHTML.matchAll(/<tr>([\s\S]*?)<\/tr>/g)];
 
-    if (matches.length < 6) {
-      return res.json({ status: false, message: "History error" });
+    if(rows.length < 3){
+      return res.json({ status:false, message:"History error" });
     }
 
-    const today = matches.slice(0, 3).map(x => x[1]);
-    const yesterday = matches.slice(3, 6).map(x => x[1]);
+    const getNumbers = (row) => {
+      return [...row.matchAll(/showdetil\('(\d+)'\)/g)].map(x => x[1]);
+    };
+
+    const today = getNumbers(rows[1][1]);
+    const yesterday = getNumbers(rows[2][1]);
+
+    const historyToday = today[0];
+    const historyYesterday = yesterday[0];
 
     /*
     =========================
-    🔥 STEP 3: LOGIC PRO
+    🔥 STEP 3: VALIDATION (PRIZE1 ONLY)
     =========================
     */
 
-    // 🔥 CONFIRMED (PALING VALID)
-    if (today[0] !== yesterday[0]) {
+    // ✅ CONFIRMED
+    if(historyToday && historyToday !== historyYesterday){
+      let result = {};
+      today.forEach((n,i)=> result["prize"+(i+1)] = n);
+
       return res.json({
-        status: true,
-        type: "CONFIRMED",
+        status:true,
+        type:"CONFIRMED",
         market,
-        result: {
-          prize1: today[0],
-          prize2: today[1],
-          prize3: today[2]
-        }
+        result
       });
     }
 
-    // ⚡ EARLY (LEBIH CEPAT)
-    if (mainNumber && mainNumber !== yesterday[0]) {
+    // ⚡ VALID (EARLY CEPAT)
+    if(mainPrize1 !== historyToday && mainPrize1 !== historyYesterday){
+      let result = {};
+      mainNumbers.forEach((n,i)=> result["prize"+(i+1)] = n);
+
       return res.json({
-        status: true,
-        type: "EARLY",
+        status:true,
+        type:"VALID",
         market,
-        result: {
-          prize1: mainNumber
-        }
+        result
       });
     }
 
     return res.json({
-      status: false,
-      message: "Belum update"
+      status:false,
+      message:"Angka lama / belum update"
     });
 
   } catch (err) {
     return res.json({
-      status: false,
-      message: "Error",
+      status:false,
+      message:"Error",
       error: err.message
     });
   }
@@ -134,5 +139,5 @@ app.get("/scrape", async (req, res) => {
 🔥 START
 */
 app.listen(PORT, () => {
-  console.log("RUNNING ON PORT " + PORT);
+  console.log("RUNNING " + PORT);
 });
