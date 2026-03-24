@@ -93,7 +93,7 @@ app.get("/scrape", async (req, res) => {
     🔥 HISTORY (VALIDASI)
     =========================
     */
-    const historyURL = `https://duaempat0326.kartu275.com/history/result/${config.code}/kosong`;
+    const historyURL = `https://mainkartu.com/history/result/${config.code}/kosong`;
 
     const historyHTML = await fetch(historyURL, {
       headers: {
